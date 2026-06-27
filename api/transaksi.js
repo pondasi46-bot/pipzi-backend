@@ -1,6 +1,9 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
+
+let akumulasiTampungan = 0; 
 
 export default async function handler(req, res) {
+    // Pengaturan CORS agar bisa diakses oleh aplikasi Android Appsgeyser Anda
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -10,64 +13,79 @@ export default async function handler(req, res) {
     }
 
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Metode tidak diizinkan' });
+        return res.status(405).json({ success: false, message: 'Method not allowed' });
     }
 
+    const { phone, operator, nominal, buktiString } = req.body;
+
+    const regexResiAngka = /^[0-9]{10,25}$/;
+    if (!buktiString || !regexResiAngka.test(buktiString)) {
+        return res.status(200).json({ success: false, message: "ID Transaksi/Resi tidak sah atau salah format." });
+    }
+
+    // SILAHKAN GANTI DENGAN DATA ASLI ANDA JIKA SUDAH SIAP JUALAN
+    const username = "vowovigvq71W"; 
+    const devKey = "dev-21a68080-1eab-11f1-8cb0-eb2ed44b2ebb"; 
+
     try {
-        const { customer_no, buyer_sku_code } = req.body;
-        
-        // Kredensial Resmi Anda (Aman di dalam server rahasia)
-        const username = "vowovigvq71W";
-        const apiKey = "dev-21a68080-1eab-11f1-8cb0-eb2ed44b2ebb"; // Ganti dengan Production Key jika sudah siap live nyata
-        
-        // -------------------------------------------------------------
-        // LOGIKA JALUR 1: JIKA APLIKASI MEMINTA CEK SALDO REAL-TIME
-        // -------------------------------------------------------------
-        if (customer_no === "CEK_SALDO" || buyer_sku_code === "CEK_SALDO") {
-            const rawSignSaldo = username + apiKey + "depo";
-            const signSaldo = crypto.createHash('md5').update(rawSignSaldo).digest('hex');
+        // 1. SISTEM PENGAMAN SALDO
+        const signCekSaldo = crypto.createHash('md5').update(username + devKey + "depo").digest('hex');
+        const resCekSaldo = await fetch('https://digiflazz.com', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmd: "deposit", username: username, sign: signCekSaldo })
+        });
+        const dataSaldo = await resCekSaldo.json();
+        const sisaSaldoKulakan = dataSaldo.data ? dataSaldo.data.deposit : 0;
 
-            const responseSaldo = await fetch("https://digiflazz.com", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    "username": username,
-                    "sign": signSaldo
-                })
-            });
-
-            const dataSaldo = await responseSaldo.json();
-            return res.status(200).json(dataSaldo);
+        if (sisaSaldoKulakan < 11000) {
+            return res.status(200).json({ success: false, message: "Maaf, stok pulsa sedang kosong. Silahkan coba beberapa saat lagi." });
         }
 
-        // -------------------------------------------------------------
-        // LOGIKA JALUR 2: JIKA APLIKASI MEMINTA TRANSAKSI UTAMA (PULSA/DATA/PLN)
-        // -------------------------------------------------------------
-        if (!customer_no) {
-            return res.status(400).json({ error: 'Nomor tujuan wajib diisi' });
-        }
+        // 2. MAPPING SKU
+        let skuCode = "";
+        const op = operator.toLowerCase();
+        if (op.includes("telkomsel")) skuCode = "t10";
+        else if (op.includes("indosat")) skuCode = "i10";
+        else if (op.includes("3") || op.includes("three")) skuCode = "three10";
+        else if (op.includes("xl")) skuCode = "xl10";
+        else if (op.includes("axis")) skuCode = "ax10";
+        else if (op.includes("smartfren")) skuCode = "sm10";
 
-        const refId = "pipzi-" + Date.now();
-        const rawSignTx = username + apiKey + refId;
-        const signTx = crypto.createHash('md5').update(rawSignTx).digest('hex');
+        // 3. PENGUNCIAN ANTI-DUPLIKAT RESI
+        const refId = "pipzi_" + buktiString; 
+        const signTransaksi = crypto.createHash('md5').update(username + devKey + refId).digest('hex');
 
-        // Menggunakan url "/v1/test-window" untuk sandbox testing DigiFlazz
-        const responseTx = await fetch("https://digiflazz.com", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+        // 4. TEMBAK DIGIFLAZZ
+        const response = await fetch('https://digiflazz.com', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                "username": username,
-                "buyer_sku_code": buyer_sku_code || "xpulsa5000",
-                "customer_no": customer_no,
-                "ref_id": refId,
-                "sign": signTx
+                username: username,
+                buyer_sku_code: skuCode,
+                customer_no: phone,
+                ref_id: refId,
+                sign: signTransaksi
             })
         });
 
-        const dataTx = await responseTx.json();
-        return res.status(200).json(dataTx);
+        const dataTransaksi = await response.json();
+
+        if (dataTransaksi.data && dataTransaksi.data.status === 'Gagal') {
+            return res.status(200).json({ success: false, message: dataTransaksi.data.message || "ID Transaksi sudah pernah digunakan." });
+        }
+
+        acumulasiTampungan += 11500; 
+        let infoTransferVA = false;
+        if (acumulasiTampungan >= 100000) {
+            infoTransferVA = true;
+            console.log(`[SETORAN MANUAL] Omset terkumpul Rp ${acumulasiTampungan}. Silahkan top up modal Digiflazz Anda.`);
+            akumulasiTampungan = 0; 
+        }
+
+        return res.status(200).json({ success: true, data: dataTransaksi, infoTransferVA });
 
     } catch (error) {
-        return res.status(500).json({ error: 'Gagal terhubung ke DigiFlazz', detail: error.message });
+        return res.status(200).json({ success: false, message: "Gangguan sistem: " + error.message });
     }
 }
