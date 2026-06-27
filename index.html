@@ -157,7 +157,7 @@
         btnKonfirmasi.disabled = true;
         btnKonfirmasi.innerHTML = "Memverifikasi...";
 
-        fetch('/api/order', {
+        fetch('/api/transaksi', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
