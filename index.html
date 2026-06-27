@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipzi</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 400px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h1 { text-align: center; color: #00adb5; margin-bottom: 20px; }
+        label { display: block; margin: 10px 0 5px; font-weight: bold; }
+        input { width: 100%; padding: 12px; box-sizing: border-box; background: #2d2d2d; border: 1px solid #444; color: #fff; border-radius: 4px; font-size: 16px; }
+        .operator-badge { display: inline-block; margin-top: 5px; padding: 5px 10px; background: #00adb5; color: #fff; border-radius: 4px; font-weight: bold; display: none; }
+        .product-box { margin-top: 15px; padding: 15px; background: #2d2d2d; border-radius: 4px; border-left: 4px solid #00adb5; display: none; }
+        .btn { display: block; width: 100%; padding: 12px; background: #00adb5; color: #fff; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        .btn:disabled { background: #555 !important; color: #888 !important; cursor: not-allowed; }
+        .note { font-size: 12px; color: #bbb; margin-top: 15px; line-height: 1.4; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .qris-container { text-align: center; }
+        .qris-img { max-width: 250px; margin: 10px auto; background: white; padding: 10px; border-radius: 8px; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- LANGKAH 1: UTAMA -->
+    <div id="page-home" class="page active">
+        <h1>Pipzi</h1>
+        <label for="phone">Nomor Tujuan</label>
+        <input type="tel" id="phone" placeholder="Contoh: 0812xxxx" autocomplete="off">
+        <div id="operator-label" class="operator-badge"></div>
+
+        <div id="product-section" class="product-box">
+            <p style="margin:0 0 10px 0; font-weight:bold;">Pilih Produk:</p>
+            <label style="display:flex; align-items:center; background:#1e1e1e; padding:10px; border-radius:4px; cursor:pointer;">
+                <input type="radio" name="nominal" value="10000" checked style="width:auto; margin-right:10px;">
+                Pulsa Reguler Rp 10.000
+            </label>
+            <p style="margin: 10px 0 0 0; color:#00adb5; font-weight:bold;">Total: Rp 11.500</p>
+        </div>
+
+        <button id="btn-bayar" class="btn" disabled onclick="validasiNomorSebelumHalamanQRIS()">Lanjutkan</button>
+
+        <div class="note">
+            Tidak mendukung operator digital (By.U/Live.On).
+        </div>
+        <p style="text-align:center; margin-top:20px;"><a href="/privacy.html" style="color:#00adb5; font-size:12px; text-decoration:none;">Kebijakan Privasi</a></p>
+    </div>
+
+    <!-- LANGKAH 2: HALAMAN QRIS CRYPTO-VALIDATION -->
+    <div id="page-qris" class="page">
+        <h1>Pembayaran QRIS</h1>
+        <div class="qris-container">
+            <p style="margin-bottom:2px;">Pindai kode QR untuk pembayaran</p>
+            <h2 style="color:#ffcc00; margin: 5px 0 10px 0; font-size: 28px;">Rp 11.500</h2>
+            
+            <div id="info-transaksi-pembeli" style="background:#2d2d2d; border:1px solid #444; padding:12px; border-radius:4px; font-size:14px; margin-bottom:15px; text-align:center; line-height:1.6;"></div>
+
+            <img src="qris.jpg" alt="QRIS Dana Bisnis" class="qris-img">
+            
+            <!-- INPUT VALIDATOR JALUR PENYELAMAT SALDO MODAL ANDA -->
+            <div style="text-align: left; margin: 15px 0;">
+                <label for="kode-referensi" style="font-size:13px; color:#ffcc00; font-weight:bold;">Masukan ID Transaksi/Nomor Resi:</label>
+                <input type="text" id="kode-referensi" placeholder="Tempel nomor referensi disini..." style="padding:10px; font-size:14px; margin-top:5px;" oninput="cekKesiapanTombol()">
+            </div>
+
+            <button id="btn-konfirmasi" class="btn" disabled onclick="prosesOrderan()">Konfirmasi Pembayaran</button>
+            <button class="btn" style="background:#444; margin-top:5px;" onclick="pindahHalaman('page-home')">Batalkan</button>
+        </div>
+    </div>
+
+    <!-- LANGKAH 3: HALAMAN PROSES -->
+    <div id="page-proses" class="page">
+        <h1>Transaksi Diproses</h1>
+        <div style="text-align:center; padding: 20px 0;">
+            <div style="font-size: 50px; margin-bottom:20px;">⚡</div>
+            <p>Pesanan Anda sedang kami teruskan ke sistem.</p>
+            <p style="font-weight:bold; color:#00adb5;">Silahkan periksa kotak masuk SMS di HP Anda secara berkala untuk memastikan pulsa telah masuk.</p>
+            <button class="btn" style="margin-top:30px;" onclick="resetApp()">Beli Pulsa Lagi</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const phoneInput = document.getElementById('phone');
+    const opLabel = document.getElementById('operator-label');
+    const prodSection = document.getElementById('product-section');
+    const btnBayar = document.getElementById('btn-bayar');
+    const btnKonfirmasi = document.getElementById('btn-konfirmasi');
+    const kodeRefInput = document.getElementById('kode-referensi');
+
+    const operators = {
+        'Telkomsel (PraBayar)': [/^(0811|0812|0813|0821|0822|0823|0851|0852|0853)/],
+        'IM3 (Indosat)': [/^(0814|0815|0816|0855|0856|0857|0858)/],
+        'Tri (3)': [/^(0895|0896|0897|0898|0899)/],
+        'XL': [/^(0817|0818|0819|0859|0877|0878)/],
+        'Axis': [/^(0831|0832|0833|0838)/],
+        'Smartfren': [/^(0881|0882|0883|0884|0885|0886|0887|0888|0889)/]
+    };
+
+    phoneInput.addEventListener('input', () => {
+        let num = phoneInput.value.trim();
+        let foundOp = null;
+        if (num.length >= 4) {
+            for (let op in operators) {
+                for (let regex of operators[op]) {
+                    if (regex.test(num.substring(0, 4))) { foundOp = op; break; }
+                }
+                if (foundOp) break;
+            }
+        }
+        if (foundOp) {
+            opLabel.textContent = "" + foundOp;
+            opLabel.style.display = 'inline-block';
+            prodSection.style.display = 'block';
+            btnBayar.disabled = false;
+            window.detectedOperator = foundOp;
+        } else {
+            opLabel.style.display = 'none';
+            prodSection.style.display = 'none';
+            btnBayar.disabled = true;
+            window.detectedOperator = null;
+        }
+    });
+
+    function pindahHalaman(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+    }
+
+    function validasiNomorSebelumHalamanQRIS() {
+        let nomorTujuan = phoneInput.value.trim();
+        let operatorTujuan = window.detectedOperator;
+
+        let cekUlang = confirm(`Konfirmasi Data\n\nNomor: ${nomorTujuan}\nOperator: ${operatorTujuan}\n\nPastikan nomor tujuan sudah benar. Transaksi yang berhasil tidak dapat dibatalkan atau dikembalikan.`);
+        if (!cekUlang) return;
+
+        document.getElementById('info-transaksi-pembeli').innerHTML = `<b>Detail Transaksi:</b><br>
+            <span style="color:#00adb5; font-weight:bold;">${nomorTujuan}</span><br>
+            <b>${operatorTujuan}</b><br>
+            Pulsa Reguler Rp 10.000`;
+
+        pindahHalaman('page-qris'); 
+    }
+
+    function cekKesiapanTombol() {
+        // Tombol baru menyala biru jika pembeli mengetik/menempelkan minimal 8 karakter ID resi transaksi
+        if (kodeRefInput.value.trim().length >= 8) {
+            btnKonfirmasi.disabled = false;
+        } else {
+            btnKonfirmasi.disabled = true;
+        }
+    }
+
+    function prosesOrderan() {
+        btnKonfirmasi.disabled = true;
+        btnKonfirmasi.innerHTML = "Memverifikasi...";
+
+        fetch('/api/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: phoneInput.value,
+                operator: window.detectedOperator,
+                nominal: '10000',
+                buktiString: kodeRefInput.value.trim() // Kirim string bukti ke server Vercel
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                pindahHalaman('page-proses');
+            } else {
+                alert("❌ VERIFIKASI GAGAL!\n\nID Transaksi yang Anda masukkan tidak valid atau sudah pernah digunakan sebelumnya. Saldo Anda belum terpotong.");
+                btnKonfirmasi.disabled = false;
+                btnKonfirmasi.innerHTML = "Konfirmasi Pembayaran";
+            }
+        })
+        .catch(err => {
+            console.log(err);
+            btnKonfirmasi.disabled = false;
+            btnKonfirmasi.innerHTML = "Konfirmasi Pembayaran";
+        });
+    }
+
+    function resetApp() {
+        phoneInput.value = '';
+        kodeRefInput.value = '';
+        opLabel.style.display = 'none';
+        prodSection.style.display = 'none';
+        btnBayar.disabled = true;
+        pindahHalaman('page-home');
+    }
+</script>
+</body>
+</html>
+
+
+                                                                                                           
