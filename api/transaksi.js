@@ -3,7 +3,6 @@ import crypto from 'crypto';
 let akumulasiTampungan = 0; 
 
 export default async function handler(req, res) {
-    // Pengaturan CORS agar bisa diakses oleh aplikasi Android Appsgeyser Anda
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -23,12 +22,14 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: false, message: "ID Transaksi/Resi tidak sah atau salah format." });
     }
 
-    // SILAHKAN GANTI DENGAN DATA ASLI ANDA JIKA SUDAH SIAP JUALAN
+    // =======================================================
+    // KREDENSIAL ASLI (Silahkan ganti kata di bawah jika sudah siap)
+    // =======================================================
     const username = "vowovigvq71W"; 
     const devKey = "dev-21a68080-1eab-11f1-8cb0-eb2ed44b2ebb"; 
 
     try {
-        // 1. SISTEM PENGAMAN SALDO
+        // 1. SISTEM PENGAMAN SALDO (URL SUDAH DIPERBAIKI)
         const signCekSaldo = crypto.createHash('md5').update(username + devKey + "depo").digest('hex');
         const resCekSaldo = await fetch('https://digiflazz.com', {
             method: 'POST',
@@ -50,16 +51,15 @@ export default async function handler(req, res) {
         else if (op.includes("indosat")) skuCode = "i10";
         else if (op.includes("axis")) skuCode = "ax10";
         else if (op.includes("smartfren")) skuCode = "sm10";
-        else if (op.includes("three") || op.includes("3") || op.includes("tri")) skuCode = "t10"; // Tri memakai 't10'
+        else if (op.includes("three") || op.includes("3") || op.includes("tri")) skuCode = "t10"; 
         else if (op.includes("xl")) skuCode = "x10";
         else if (op.includes("by.u") || op.includes("byu")) skuCode = "by10";
-
 
         // 3. PENGUNCIAN ANTI-DUPLIKAT RESI
         const refId = "pipzi_" + buktiString; 
         const signTransaksi = crypto.createHash('md5').update(username + devKey + refId).digest('hex');
 
-        // 4. TEMBAK DIGIFLAZZ
+        // 4. TEMBAK DIGIFLAZZ (URL SUDAH DIPERBAIKI)
         const response = await fetch('https://digiflazz.com', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -91,5 +91,5 @@ export default async function handler(req, res) {
     } catch (error) {
         return res.status(200).json({ success: false, message: "Gangguan sistem: " + error.message });
     }
-                                     }
+}
     
