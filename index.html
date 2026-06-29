@@ -102,9 +102,10 @@
         let foundOp = null;
         if (num.length >= 4) {
             for (let op in operators) {
-                for (let regex of operators[op]) {
-                    if (regex.test(num.substring(0, 4))) { foundOp = op; break; }
-                }
+                            for (let regex of operators[op]) {
+                let digitCek = op === "by.U" ? num.substring(0, 5) : num.substring(0, 4);
+                if (regex.test(digitCek)) { foundOp = op; break; }
+            }
                 if (foundOp) break;
             }
         }
