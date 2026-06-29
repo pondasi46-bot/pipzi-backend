@@ -38,17 +38,26 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: false, message: "Maaf, stok pulsa sedang kosong. Silahkan coba beberapa saat lagi." });
         }
 
-        // 2. MAPPING SKU RESMI (SUDAH DIKUNCI 5 DIGIT BY.U)
+        // 2. MAPPING SKU AUTOMATIC (ROBOT BACKEND PEMISAH BY.U & TELKOMSEL)
         let skuCode = "";
         const op = operator.toLowerCase();
+        const cleanPhone = phone.trim();
         
-        if (phone.startsWith("08515")) skuCode = "by10"; 
-        else if (op.includes("telkomsel") || phone.startsWith("0851")) skuCode = "s10";
-        else if (op.includes("indosat")) skuCode = "i10";
-        else if (op.includes("axis")) skuCode = "ax10";
-        else if (op.includes("smartfren")) skuCode = "sm10";
-        else if (op.includes("three") || op.includes("3") || op.includes("tri")) skuCode = "t10"; 
-        else if (op.includes("xl")) skuCode = "x10";
+        if (cleanPhone.startsWith("08515")) {
+            skuCode = "by10"; // Jika nomor 08515 langsung belok ke produk by.U
+        } else if (op.includes("telkomsel") || cleanPhone.startsWith("0851")) {
+            skuCode = "s10"; // Sisa awalan 0851 lainnya tetap ke Telkomsel
+        } else if (op.includes("indosat")) {
+            skuCode = "i10";
+        } else if (op.includes("axis")) {
+            skuCode = "ax10";
+        } else if (op.includes("smartfren")) {
+            skuCode = "sm10";
+        } else if (op.includes("three") || op.includes("3") || op.includes("tri")) {
+            skuCode = "t10"; 
+        } else if (op.includes("xl")) {
+            skuCode = "x10";
+        }
 
         // 3. PENGUNCIAN ANTI-DUPLIKAT RESI
         const refId = "pipzi_" + buktiString; 
@@ -61,7 +70,7 @@ export default async function handler(req, res) {
             body: JSON.stringify({
                 username: username,
                 buyer_sku_code: skuCode,
-                customer_no: phone,
+                customer_no: cleanPhone,
                 ref_id: refId,
                 sign: signTransaksi
             })
@@ -85,5 +94,5 @@ export default async function handler(req, res) {
     } catch (error) {
         return res.status(200).json({ success: false, message: "Gangguan sistem: " + error.message });
     }
-            }
+                   }
         
