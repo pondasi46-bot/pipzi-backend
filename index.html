@@ -102,12 +102,17 @@
         let num = phoneInput.value.trim();
         let foundOp = null;
         if (num.length >= 4) {
-            for (let op in operators) {
-                for (let regex of operators[op]) {
-                    if (regex.test(num.substring(0, 4))) { foundOp = op; break; }
+                    for (let op in operators) {
+            for (let regex of operators[op]) {
+                let digitsToTest = op === "by.U" ? num.substring(0, 5) : num.substring(0, 4);
+                if (regex.test(digitsToTest)) {
+                    foundOp = op;
+                    break;
                 }
-                if (foundOp) break;
             }
+            if (foundOp) break;
+        }
+
         }
         if (foundOp) {
             opLabel.textContent = "" + foundOp;
